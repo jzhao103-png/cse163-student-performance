@@ -190,7 +190,10 @@ def absence_plot(sample: pd.DataFrame) -> plt.Figure:
         data=pairs, x="absences", y="G3", size="n", sizes=(14, 148),
         color="#247D83", alpha=0.69, linewidth=0.35, legend="brief", ax=ax
     )
-    ax.legend(title="Students per pair", loc="upper right", frameon=True)
+    ax.legend(
+        title="Students per pair", loc="upper left",
+        bbox_to_anchor=(1.02, 1), borderaxespad=0, frameon=True
+    )
     ax.set(
         title="Final grade and school absences",
         xlabel="Number of absences", ylabel="Final grade (G3)",
@@ -207,8 +210,8 @@ def save_plots(samples: dict[str, pd.DataFrame], folder: Path) -> None:
         style="whitegrid",
         font="DejaVu Sans",
         rc={"axes.titlesize": 15, "axes.labelsize": 12,
-            "xtick.labelsize": 11.5, "ytick.labelsize": 11.5,
-            "legend.fontsize": 11, "legend.title_fontsize": 11,
+            "xtick.labelsize": 12, "ytick.labelsize": 12,
+            "legend.fontsize": 12, "legend.title_fontsize": 12,
             "axes.titleweight": "bold"},
     )
     study = grade_boxplot(

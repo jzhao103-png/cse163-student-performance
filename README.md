@@ -46,4 +46,5 @@ archive in `data/`.
 
 Pandas and seaborn follow the CSE 163 course examples. The inference module
 uses [SciPy statistics](https://docs.scipy.org/doc/scipy/reference/stats.html).
-ChatGPT assisted with drafting and verifying the analysis and tests.
+ChatGPT and Claude helped brainstorm the project and validate the work
+plan. Claude also helped revise the EDA report and the code documentation.

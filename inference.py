@@ -1,4 +1,13 @@
-"""Statistical tests and effect estimates for the three research questions."""
+"""
+Junyi Zhao
+CSE 163 AF, Autumn 2026 - Final Project Part 2 (EDA)
+
+Statistical inference for the three research questions with
+scipy.stats: a Kruskal-Wallis test with adjacent Mann-Whitney U
+follow-ups (study time), a Spearman correlation (absences), and a Welch
+t-test (prior failures), each with a Bonferroni adjustment and a seeded
+percentile bootstrap 95% interval for its effect.
+"""
 
 from collections.abc import Callable
 
@@ -16,7 +25,10 @@ BOOTSTRAP_RESAMPLES = 5000
 
 
 def study_grades(sample: pd.DataFrame) -> list[np.ndarray]:
-    """Return grade arrays in order from shortest to longest study time."""
+    """
+    Returns a list of four arrays with the G3 values in sample for
+    study-time codes 1, 2, 3, and 4, in that order.
+    """
     return [
         sample.loc[sample["studytime"] == code, "G3"].to_numpy()
         for code in STUDY_CODES
@@ -24,24 +36,30 @@ def study_grades(sample: pd.DataFrame) -> list[np.ndarray]:
 
 
 def failure_grades(sample: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Return grades for students with no failures, then with any failure."""
+    """
+    Returns a tuple of two arrays from sample: the G3 values of students
+    with no prior failures, then those of students with at least one.
+    """
     none = sample.loc[sample["failures"] == 0, "G3"].to_numpy()
     any_failure = sample.loc[sample["failures"] > 0, "G3"].to_numpy()
     return none, any_failure
 
 
 def median_difference(first: np.ndarray, second: np.ndarray) -> float:
-    """Return the first sample's median minus the second sample's median."""
+    """Returns the median of first minus the median of second."""
     return float(np.median(first) - np.median(second))
 
 
 def mean_difference(first: np.ndarray, second: np.ndarray) -> float:
-    """Return the first sample's mean minus the second sample's mean."""
+    """Returns the mean of first minus the mean of second."""
     return float(np.mean(first) - np.mean(second))
 
 
 def spearman_coefficient(absences: np.ndarray, grades: np.ndarray) -> float:
-    """Return Spearman's rho for paired absence and grade observations."""
+    """
+    Returns Spearman's rank correlation (rho) between the paired absences
+    and grades arrays.
+    """
     return float(stats.spearmanr(absences, grades).statistic)
 
 
@@ -51,7 +69,12 @@ def bootstrap_interval(
     paired: bool = False,
     resamples: int = BOOTSTRAP_RESAMPLES,
 ) -> tuple[float, float]:
-    """Return a seeded percentile bootstrap 95% interval for an effect."""
+    """
+    Returns the (low, high) bounds of a seeded 95% percentile bootstrap
+    interval for effect(*samples) using the given number of resamples.
+    If paired is True, the arrays are resampled together by position so
+    pairs stay intact; otherwise each array is resampled on its own.
+    """
     interval = stats.bootstrap(
         samples,
         effect,
@@ -66,14 +89,23 @@ def bootstrap_interval(
 
 
 def bonferroni(p_value: float) -> float:
-    """Return a p-value adjusted for a family of three comparisons."""
+    """
+    Returns the Bonferroni-adjusted p-value: p_value times the number of
+    planned tests (3), capped at 1.0.
+    """
     return min(NUMBER_OF_TESTS * p_value, 1.0)
 
 
 def adjacent_comparisons(
     groups: list[np.ndarray], overall_p: float
 ) -> pd.DataFrame:
-    """Test adjacent study groups if the adjusted omnibus test rejects."""
+    """
+    Takes the four study-time grade arrays and the omnibus p-value. If
+    overall_p is below the Bonferroni threshold (0.05 / 3), returns a
+    DataFrame of two-sided Mann-Whitney U tests for codes 1 vs 2, 2 vs 3,
+    and 3 vs 4 with raw and adjusted p-values. Otherwise returns an empty
+    DataFrame with the same columns.
+    """
     columns = ["first_code", "second_code", "U", "p", "adjusted_p"]
     rows = []
     if overall_p < TEST_ALPHA:
@@ -94,7 +126,12 @@ def adjacent_comparisons(
 def primary_tests(
     samples: dict[str, pd.DataFrame],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Run the three planned tests and estimate their effect intervals."""
+    """
+    Runs the three planned tests on the per-question samples. Returns a
+    tuple of a DataFrame indexed by question (statistic, raw and adjusted
+    p-values, rejection decision, effect, and bootstrap interval) and the
+    DataFrame of adjacent study-time comparisons.
+    """
     study = study_grades(samples["Study time"])
     pairs = samples["Absences"]
     absences = pairs["absences"].to_numpy()
@@ -136,7 +173,12 @@ def primary_tests(
 
 
 def effect_estimates(samples: dict[str, pd.DataFrame]) -> dict[str, float]:
-    """Return the same three effect estimates for a sensitivity subset."""
+    """
+    Returns a dict with the three effects for the per-question samples:
+    the median G3 gap between the longest and shortest study-time bands,
+    Spearman's rho for absences and G3, and the mean G3 gap between
+    students with no prior failures and those with at least one.
+    """
     study = study_grades(samples["Study time"])
     pairs = samples["Absences"]
     none, any_failure = failure_grades(samples["Prior failures"])

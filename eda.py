@@ -1,4 +1,14 @@
-"""Explore study time, absences, prior failures, and Portuguese grades."""
+"""
+Junyi Zhao
+CSE 163 AF, Autumn 2026 - Final Project Part 2 (EDA)
+
+Runs the exploratory data analysis of the UCI Student Performance
+(Portuguese course) data: reads and validates student-por.csv, audits
+missing values and duplicates, summarizes the variables of interest,
+saves one plot per research question (study time, absences, prior
+failures), and prints the statistical tests from inference.py.
+Run with `python eda.py`; tables and plots are saved in outputs/.
+"""
 
 from pathlib import Path
 from typing import TextIO
@@ -27,7 +37,11 @@ QUESTION_COLUMNS = {
 
 
 def load_data(path: Path | TextIO) -> pd.DataFrame:
-    """Read the semicolon-delimited UCI CSV and recognize missing entries."""
+    """
+    Reads the semicolon-delimited UCI CSV at the given path (or an open
+    text stream) and returns it as a DataFrame. Entries of "?" and cells
+    that are empty or contain only spaces are stored as missing (NA).
+    """
     raw = pd.read_csv(path, sep=";", na_values=["?"], skipinitialspace=True)
     return raw.replace(r"^\s*$", pd.NA, regex=True)
 
@@ -35,14 +49,24 @@ def load_data(path: Path | TextIO) -> pd.DataFrame:
 def valid_integers(
     values: pd.Series, minimum: int, maximum: int
 ) -> pd.Series:
-    """Convert whole numbers in the given range and mask other values."""
+    """
+    Converts the given Series to numbers and returns a Series that keeps
+    only whole numbers from minimum to maximum (inclusive). Any other
+    entry (text, decimals, or out-of-range values) becomes NaN.
+    """
     numbers = pd.to_numeric(values, errors="coerce")
     is_valid = numbers.between(minimum, maximum) & (numbers % 1 == 0)
     return numbers.where(is_valid)
 
 
 def prepare_data(raw: pd.DataFrame) -> pd.DataFrame:
-    """Validate the analysis columns without discarding student rows."""
+    """
+    Takes the raw student DataFrame and returns a new DataFrame with the
+    five analysis columns, where invalid entries become NaN, plus a
+    failure_group column ("None" for 0 failures, "At least one"
+    otherwise). No rows are removed. Raises a ValueError if any analysis
+    column is missing from raw.
+    """
     missing_columns = set(ANALYSIS_COLUMNS) - set(raw.columns)
     if missing_columns:
         names = ", ".join(sorted(missing_columns))
@@ -62,7 +86,13 @@ def prepare_data(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def audit_data(raw: pd.DataFrame, data: pd.DataFrame) -> pd.Series:
-    """Count missing cells, invalid values, and duplicate records."""
+    """
+    Takes the raw DataFrame and its prepared version from prepare_data
+    and returns a Series of counts: table size, missing cells, invalid
+    analysis values, extra full-row duplicates, extra rows with matching
+    analysis fields, zero grades, zero absences, and zero grades at zero
+    absences.
+    """
     missing = raw.isna()
     selected = raw[ANALYSIS_COLUMNS]
     invalid = selected.notna() & data[ANALYSIS_COLUMNS].isna()
@@ -87,7 +117,12 @@ def audit_data(raw: pd.DataFrame, data: pd.DataFrame) -> pd.Series:
 
 
 def question_samples(data: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    """Keep a row for each question when both variables are usable."""
+    """
+    Takes the prepared data and returns a dict that maps each research
+    question ("Study time", "Absences", "Prior failures") to the rows
+    where both of that question's variables (its predictor and G3) are
+    present.
+    """
     return {
         question: data.dropna(subset=columns)
         for question, columns in QUESTION_COLUMNS.items()
@@ -95,12 +130,20 @@ def question_samples(data: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
 
 def quantitative_summary(data: pd.DataFrame) -> pd.DataFrame:
-    """Summarize the two quantitative variables using seven statistics."""
+    """
+    Returns a DataFrame with one row each for G3 and absences in the
+    prepared data, giving the mean, standard deviation, minimum, first
+    quartile, median, third quartile, and maximum.
+    """
     return data[["G3", "absences"]].describe().T.drop(columns="count")
 
 
 def category_counts(data: pd.DataFrame) -> pd.DataFrame:
-    """Count the levels of the categorical and ordinal variables."""
+    """
+    Returns a DataFrame with the number of students at every level of
+    studytime, failures, failure_group, and school in the prepared data.
+    Levels that never occur are listed with a count of 0.
+    """
     categories = {
         "studytime": STUDY_CODES,
         "failures": FAILURE_CODES,
@@ -118,19 +161,30 @@ def category_counts(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def grade_summary(sample: pd.DataFrame, group: str) -> pd.DataFrame:
-    """Summarize the grade distribution within each level of a variable."""
+    """
+    Returns the count, mean, standard deviation, minimum, quartiles,
+    maximum, and interquartile range (IQR) of G3 for each level of the
+    given group column in sample.
+    """
     summary = sample.groupby(group)["G3"].describe()
     summary["IQR"] = summary["75%"] - summary["25%"]
     return summary
 
 
 def absence_grade_counts(sample: pd.DataFrame) -> pd.DataFrame:
-    """Count students with each identical absence and final-grade pair."""
+    """
+    Returns a DataFrame with one row per distinct (absences, G3) pair in
+    sample and a column n that counts the students with that pair.
+    """
     return sample.groupby(["absences", "G3"]).size().reset_index(name="n")
 
 
 def sensitivity_summary(data: pd.DataFrame) -> pd.DataFrame:
-    """Repeat the effect estimates with different groups of students."""
+    """
+    Recomputes the three effect estimates for all records, for students
+    with a final grade above zero, and for each school. Returns one row
+    per subset with its number of rows and the three effects.
+    """
     subsets = {
         "All records": data,
         "G3 above zero": data[data["G3"] > 0],
@@ -147,7 +201,10 @@ def sensitivity_summary(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_figure(fig: plt.Figure, filename: Path) -> None:
-    """Save a figure at print resolution and close it."""
+    """
+    Saves the given figure to filename at 220 dpi with a white background
+    and then closes the figure.
+    """
     fig.tight_layout(pad=0.8)
     fig.savefig(filename, dpi=220, facecolor="white")
     plt.close(fig)
@@ -161,7 +218,12 @@ def grade_boxplot(
     title: str,
     x_label: str,
 ) -> plt.Figure:
-    """Plot grades by group and show each group's sample size."""
+    """
+    Returns a figure with a box plot of G3 for each level of the group
+    column in data, drawn in the given order. Each x tick shows the
+    matching label and that group's sample size, and title and x_label
+    set the plot text.
+    """
     fig, ax = plt.subplots(figsize=(7.2, 3.18))
     sns.boxplot(
         data=data, x=group, y="G3", order=order, color="#8AC4C0",
@@ -183,7 +245,11 @@ def grade_boxplot(
 
 
 def absence_plot(sample: pd.DataFrame) -> plt.Figure:
-    """Plot the grade against absences with marker area based on counts."""
+    """
+    Returns a figure that plots each distinct (absences, G3) pair in
+    sample as a point whose area grows with the number of students who
+    share that pair.
+    """
     pairs = absence_grade_counts(sample)
     fig, ax = plt.subplots(figsize=(7.2, 3.18))
     sns.scatterplot(
@@ -205,7 +271,11 @@ def absence_plot(sample: pd.DataFrame) -> plt.Figure:
 
 
 def save_plots(samples: dict[str, pd.DataFrame], folder: Path) -> None:
-    """Create one titled visualization for each research question."""
+    """
+    Saves the three research-question plots (study time, absences, and
+    prior failures) as PNG files in folder, using the matching sample
+    from samples for each plot.
+    """
     sns.set_theme(
         style="whitegrid",
         font="DejaVu Sans",

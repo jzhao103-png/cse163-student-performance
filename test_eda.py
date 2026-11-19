@@ -1,4 +1,11 @@
-"""Tests using small examples with hand-checked expected outputs."""
+"""
+Junyi Zhao
+CSE 163 AF, Autumn 2026 - Final Project Part 2 (EDA)
+
+Tests the loading, cleaning, summary, and inference functions in eda.py
+and inference.py with small hand-checked examples, and checks the shape
+and sample sizes of the bundled dataset. Run with `python test_eda.py`.
+"""
 
 from io import StringIO
 from math import isclose, sqrt
@@ -27,7 +34,10 @@ from inference import (
 
 
 def test_read_delimiter_and_missing_values() -> None:
-    """Read semicolons and missing markers without losing a zero grade."""
+    """
+    Tests load_data and prepare_data: semicolons and missing markers are
+    read correctly and a valid zero grade is kept.
+    """
     file = StringIO(
         'school;studytime;absences;failures;G3\n'
         'GP;1;0;0;0\n'
@@ -42,7 +52,10 @@ def test_read_delimiter_and_missing_values() -> None:
 
 
 def test_filter_only_relevant_values() -> None:
-    """Keep valid zeros and reject only the relevant invalid values."""
+    """
+    Tests prepare_data, audit_data, and question_samples: valid zeros are
+    kept and only the relevant invalid values are rejected.
+    """
     raw = pd.DataFrame(
         {
             "school": ["GP", "MS", "GP", "GP", "MS", "GP"],
@@ -65,7 +78,10 @@ def test_filter_only_relevant_values() -> None:
 
 
 def test_duplicate_profiles_and_rows() -> None:
-    """Count full copies separately from matching analysis profiles."""
+    """
+    Tests audit_data: full-row copies are counted separately from rows
+    that only share the analysis fields.
+    """
     raw = pd.DataFrame(
         {
             "school": ["GP"] * 3, "studytime": [1] * 3,
@@ -81,7 +97,10 @@ def test_duplicate_profiles_and_rows() -> None:
 
 
 def test_quantitative_and_group_summaries() -> None:
-    """Check the seven statistics, group counts, and quartile ranges."""
+    """
+    Tests quantitative_summary, grade_summary, and category_counts on a
+    small table with known statistics.
+    """
     data = pd.DataFrame(
         {"G3": [0, 2, 4, 6, 8], "absences": [0, 2, 2, 3, 9],
          "studytime": [1, 1, 1, 1, 1], "failures": [0, 0, 1, 2, 3],
@@ -102,7 +121,10 @@ def test_quantitative_and_group_summaries() -> None:
 
 
 def test_absence_grade_counts() -> None:
-    """Aggregate only identical pairs and account for every student."""
+    """
+    Tests absence_grade_counts: only identical pairs are combined and
+    every student is counted.
+    """
     sample = pd.DataFrame({"absences": [0, 0, 0, 2], "G3": [4, 4, 10, 10]})
     counts = absence_grade_counts(sample)
     assert counts.values.tolist() == [[0, 4, 2], [0, 10, 1], [2, 10, 1]]
@@ -110,7 +132,9 @@ def test_absence_grade_counts() -> None:
 
 
 def test_effects_use_the_intended_directions() -> None:
-    """Compare the effects with simple known differences and ranks."""
+    """
+    Tests effect_estimates with simple known differences and ranks.
+    """
     raw = pd.DataFrame(
         {"studytime": [1, 2, 3, 4], "absences": [3, 2, 1, 0],
          "G3": [6, 8, 10, 12], "failures": [1, 1, 0, 0],
@@ -123,7 +147,10 @@ def test_effects_use_the_intended_directions() -> None:
 
 
 def test_follow_up_gate_and_correction() -> None:
-    """Check that only the planned comparisons run and adjust p-values."""
+    """
+    Tests adjacent_comparisons and bonferroni: only the planned
+    comparisons run, and p-values are adjusted and capped at 1.
+    """
     groups = [np.arange(i, i + 5) for i in range(4)]
     assert adjacent_comparisons(groups, 0.02).empty
     followups = adjacent_comparisons(groups, 0.01)
@@ -134,7 +161,10 @@ def test_follow_up_gate_and_correction() -> None:
 
 
 def test_paired_bootstrap() -> None:
-    """Resampling paired values must preserve a fixed difference."""
+    """
+    Tests bootstrap_interval: paired resampling must preserve a fixed
+    one-point difference.
+    """
     first = np.array([1, 3, 7, 9])
     second = first - 1
     interval = bootstrap_interval(
@@ -144,7 +174,10 @@ def test_paired_bootstrap() -> None:
 
 
 def test_shipped_data() -> None:
-    """Check the expected source shape and the analysis sample sizes."""
+    """
+    Tests load_data, prepare_data, and audit_data on the bundled CSV:
+    expected shape, no missing or invalid cells, and full sample sizes.
+    """
     raw = load_data(DATA_PATH)
     data = prepare_data(raw)
     audit = audit_data(raw, data)
